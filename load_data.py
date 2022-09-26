@@ -252,7 +252,7 @@ if __name__ == '__main__':
         SAMPLE_SETS = ['en', 'id', 'fr', 'es']
         settings = {
             "split": split,
-            "rainfall_dataset": 'GSMaP',
+            "rainfall_dataset": 'MODIS',
             "discard_below_or_equal_to_value": 0,
             "correct_rainfall": True,
             "replace_locations": True

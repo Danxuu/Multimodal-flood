@@ -118,7 +118,7 @@ def main(experiment, plot_variable, decimals=2):
     # if plot_variable != 'l2_reg_lambda_1':
     #     data = data[data['l2_reg_lambda'] == 0.025]
     # data = data[data['n_epochs'] == 1_000]
-    data = data[data['rainfall_dataset'] == 'GSMaP']
+    data = data[data['rainfall_dataset'] == 'MODIS']
     # data = data[data['discard_below_or_equal_to_value'] == 0]
 
     data = data[data['test_model'] == False]

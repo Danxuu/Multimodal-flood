@@ -36,15 +36,17 @@ def create_nc(start, end, folder, nc_path):
         data_type = np.dtype('>i2')  # Little-endian 4byte (32bit) float
         lons = np.arange(-179.98, 180, 0.04)
         lats = np.arange(59.98, -60, -0.04)
-    elif RAINFALL_TYPE == 'GSMaP':
+    elif RAINFALL_TYPE == 'MODIS':
         data_type = np.dtype('<f4')
         lons = np.arange(-179.95, 180, 0.1)
-        lats = np.arange(59.95, -59.95 - 0.1, -0.1)
+        lats = np.arange(60.00, -59.95 - 0.1, -0.1)
     else:
         raise ValueError
     
     data_lon_size = len(lons)
     data_lat_size = len(lats)
+    if os.path.exists(nc_path):
+        os.remove(nc_path)
     if not os.path.exists(nc_path):
 
         # Create netcdf file
@@ -73,7 +75,7 @@ def create_nc(start, end, folder, nc_path):
         times.units = 'hours since 1970-01-01 00:00:00'
         times.calendar = 'gregorian'
         precip = ncfile.createVariable(
-            'precipitation',
+            'snowmelt',
             datatype='i2',
             dimensions=('time', 'lat', 'lon'),
             chunksizes=(30, 20, 20),
@@ -82,7 +84,7 @@ def create_nc(start, end, folder, nc_path):
             contiguous=False,  # do not neccesarily store contiguous on disk
             fill_value=-9999
         )
-        precip.standard_name = 'precipitation'
+        precip.standard_name = 'snowmelt'
         precip.units = 'mm'
         timestep = 0
 
@@ -93,44 +95,34 @@ def create_nc(start, end, folder, nc_path):
         timestep = len(times)
         start = start + timedelta(hours=timestep)
 
-        precip = ncfile.variables['precipitation']
+        precip = ncfile.variables['snowmelt']
 
     precip.set_var_chunk_cache(size=14_000_000_000, nelems=100_000_000, preemption=0)
     t0 = datetime.utcnow()
     for timestep, dt in enumerate(daterange(start, end, timedelta(hours=1)), start=timestep):
-        start_of_year = datetime(dt.year, 1, 1)
-        days_since_start = (dt - start_of_year).days + 1
-        
-        if RAINFALL_TYPE == 'PERSIANN':
-            fn = f"rgccs1h{str(dt.year)[2:]}{str(days_since_start).zfill(3)}{str(dt.hour).zfill(2)}.bin.gz"
-        elif RAINFALL_TYPE == 'GSMaP':
-            fn = 'raw/gsmap_nrt.{}{:02d}{:02d}.{:02d}00.dat.gz'.format(dt.year, dt.month, dt.day, dt.hour)
-
-        fp = os.path.join(folder, fn)
+        fp=folder
 
         if os.path.exists(fp):
             print("timestep: {} - {}".format(timestep, dt))
-
-            with gzip.open(fp, 'rb') as g:
-                try:
-                    rainfall_raw = np.frombuffer(g.read(), dtype=data_type).reshape(data_lat_size, data_lon_size)
-                except (OSError, ValueError):
-                    print('OSError')
-                    rainfall = np.full((data_lat_size, data_lon_size), np.nan)
-                else:
-                    rainfall_raw = copy(rainfall_raw)
-                    
-                    split_col = data_lon_size // 2
-                    
-                    rainfall = np.zeros((data_lat_size, data_lon_size))
-                    rainfall[:, split_col:] = rainfall_raw[:, :split_col]
-                    rainfall[:, :split_col] = rainfall_raw[:, split_col:]
-
-                    # rainfall is never negative
-                    rainfall[rainfall < 0] = 0
-                
-                precip[timestep, :, :] = rainfall
-                times[timestep] = date2num(dt, units=times.units, calendar=times.calendar)
+            
+            file = netCDF4.Dataset(fp)
+            data = file['smlt'][timestep]
+            rainfall_raw = [x*1000 for x in data]
+            # for lat in range(data_lat_size):
+            #     for lon in range(data_lon_size):      
+            #         print(rainfall_raw[lat][lon])
+            rainfall_raw=np.array(rainfall_raw)
+            
+            split_col = data_lon_size // 2
+            
+            rainfall = np.zeros((data_lat_size, data_lon_size))
+            rainfall[:, split_col:] = rainfall_raw[:, :split_col]
+            rainfall[:, :split_col] = rainfall_raw[:, split_col:]
+            # # rainfall is never negative
+            rainfall[rainfall < 0] = 0
+            
+            precip[timestep, :, :] = rainfall
+            times[timestep] = date2num(dt, units=times.units, calendar=times.calendar)
         else:
             print(f'{fp} does not exist')
             sys.exit()
@@ -145,13 +137,14 @@ def create_nc(start, end, folder, nc_path):
 
 
 if __name__ == '__main__':
-    RAINFALL_TYPE = 'GSMaP'
+    RAINFALL_TYPE = 'MODIS'
     base_path = os.path.join('data', RAINFALL_TYPE)
-    for year in list(range(2009, 2019)):
+    for year in list(range(2009, 2010)):
         hourly_nc = os.path.join(base_path, f"1hr_sum_{year}.nc")
+        orgin_hourly_nc= os.path.join(base_path, f"1hr_sum_origin_{year}.nc")
         create_nc(
             datetime(year, 1, 1),
             datetime(year + 1, 1, 1),
-            base_path,
+            orgin_hourly_nc,
             hourly_nc
         )

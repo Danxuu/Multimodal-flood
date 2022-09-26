@@ -39,9 +39,9 @@ def main(experiment_type, iterations, n_folds, verbose=False):
         POS_WEIGHTS = [2.00]
 
     if experiment_type == 'compare_rainfall':
-        hyper_parameters['rainfall_dataset'] = ['GSMaP', 'PERSIANN']
+        hyper_parameters['rainfall_dataset'] = ['MODIS', 'PERSIANN']
     else:
-        hyper_parameters['rainfall_dataset'] = ['GSMaP']
+        hyper_parameters['rainfall_dataset'] = ['MODIS']
 
     if experiment_type.startswith('exclude-') or experiment_type.startswith('evaluate-'):
         language = experiment_type[-2:]

@@ -5,7 +5,7 @@ import numpy as np
 import geopandas as gpd
 from osgeo import ogr
 
-pg = PostgreSQL('classification')
+pg = PostgreSQL('classification_snowmelt')
 
 
 def export_shapefile(shapefile, fields, kind='json', force_multipolygon=False):

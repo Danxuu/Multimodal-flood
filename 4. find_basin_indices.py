@@ -7,11 +7,11 @@ from osgeo import osr, gdal
 
 from postgresql import PostgreSQL
 
-RAINFALL_TYPE = 'GSMaP'
+RAINFALL_TYPE = 'MODIS'
 
 if RAINFALL_TYPE == 'PERSIANN':
     gt = (-180, .04, 0, 60, 0, -.04)
-elif RAINFALL_TYPE == 'GSMaP':
+elif RAINFALL_TYPE == 'MODIS':
     gt = (-180, .10, 0, 60, 0, -.10)
 
 
@@ -60,7 +60,7 @@ if not os.path.exists(shp_file):
     )
 
 
-pg = PostgreSQL('classification')
+pg = PostgreSQL('classification_snowmelt')
 
 if not pg.table_exists(f'{RAINFALL_TYPE.lower()}_raster'):
     gdf = gpd.GeoDataFrame.from_file(shp_file)

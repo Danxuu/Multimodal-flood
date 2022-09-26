@@ -22,7 +22,7 @@ from config import (
     SAMPLE_SETS
 )
 
-pg = PostgreSQL('classification')
+pg = PostgreSQL('classification_snowmelt')
 
 
 class BasinHydrology():
@@ -139,9 +139,10 @@ class BasinHydrology():
         return timeline
 
     def get_cell_precipitation(self, x, y):
-        return self.precipitation[
-            {'lat': y, 'lon': x}
-        ]['precipitation'].values
+        # return self.precipitation[
+        #     {'lat': y, 'lon': x}
+        # ]['precipitation'].values
+        return self.precipitation[{'lat': y, 'lon': x}]['snowmelt'].values
 
     def get_hydrology_for_basin(self, basinid):
         pg.cur.execute("""
@@ -152,14 +153,17 @@ class BasinHydrology():
         indices = pg.cur.fetchone()[0]
         basin_precipitation = []
         factors = []
+        # print(len(indices))
         for cell_indices in indices:
+            # print(1111111111111111)
             cell_precipitation = self.get_cell_precipitation(
                 cell_indices['x'],
                 cell_indices['y']
             )
+            # print(2222222222222222)
             if self.name_rainfall_dataset == 'PERSIANN':
                 cell_precipitation = cell_precipitation / 100  # unit is 100 * mm/hr
-            elif self.name_rainfall_dataset == 'GSMaP':
+            elif self.name_rainfall_dataset == 'MODIS':
                 pass  # unit is mm/r
             else:
                 raise ValueError
@@ -187,7 +191,11 @@ class BasinHydrology():
 
         upstream_factors = []
         upstream_basins_precipitation = []
+        count=0
+        # print(len(basin_ids))
         for basin_id in basin_ids:
+            # count=count+1
+            # print(count)
             basin_precipitation, factors = self.get_hydrology_for_basin(basin_id)
             upstream_basins_precipitation.extend(basin_precipitation)
             upstream_factors.extend(factors)
@@ -232,7 +240,10 @@ class BasinHydrology():
 
     def calculate_percentile(self, timeline, threshold):
         timeline = self.discard_below_or_equal_to(timeline)
-        return np.percentile(timeline, threshold)        
+        if timeline.size>0 :
+            return np.percentile(timeline, threshold) 
+        else:
+            return 0.0       
 
     def get_timeline(self, upstream_hours, accumulation_time):
         precipitation, factors = self.data[upstream_hours]
@@ -633,7 +644,7 @@ class DataCreator:
 
 if __name__ == '__main__':
     settings = {
-        "rainfall_dataset": 'GSMaP',
+        "rainfall_dataset": 'MODIS',
         "discard_below_or_equal_to_value": 0,
         "correct_rainfall": True,
         "replace_locations": True
