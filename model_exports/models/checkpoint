@@ -1,0 +1,2 @@
+model_checkpoint_path: "best_2.0_False_False_9_4.ckpt"
+all_model_checkpoint_paths: "best_2.0_False_False_9_4.ckpt"

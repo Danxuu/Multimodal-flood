@@ -1,0 +1,22 @@
+plotting 500 datapoints
+    % pos val precision_pos recall_pos f-score_pos precision_neg recall_neg f-score_neg f1-score difference
+0.5   58.8573         0.848     0.5421      0.6575        0.8845     0.5733      0.6917             -0.0342
+1.0   58.8573        0.8482      0.727      0.7824        0.8485     0.7207      0.7789              0.0035
+2.0   58.8573        0.8134     0.8084      0.8105        0.8114     0.8086      0.8095              0.0009
+3.0   58.8573        0.7912     0.8446      0.8168        0.7856     0.8503      0.8163              0.0005
+5.0   58.8573        0.7578     0.8804       0.814        0.7085     0.9189      0.7953              0.0187
+average difference: -0.002123013689450559
+plotting 400 datapoints
+            % pos val precision_pos recall_pos f-score_pos precision_neg recall_neg f-score_neg f1-score difference
+evaluate-en   44.2395        0.7906     0.6573      0.7166        0.7974     0.6595      0.7207              -0.004
+evaluate-es   62.9416        0.8223     0.8424      0.8317        0.8182     0.8344      0.8257              0.0059
+evaluate-fr   56.2771        0.7532     0.7257      0.7383        0.7535     0.7308       0.741             -0.0027
+evaluate-id   72.3516        0.8286     0.9047      0.8646        0.8305     0.9077      0.8671             -0.0025
+average difference: -0.0008169433508805335
+plotting 400 datapoints
+           % pos val precision_pos recall_pos f-score_pos precision_neg recall_neg f-score_neg f1-score difference
+exclude-en   44.2391        0.6338     0.6721      0.6491         0.626     0.6886      0.6535             -0.0043
+exclude-es   62.9828         0.807     0.7281      0.7641        0.8007     0.7398      0.7672             -0.0032
+exclude-fr   56.2907        0.7235     0.6194      0.6631        0.7296     0.5767      0.6379              0.0252
+exclude-id   72.3982        0.7955      0.889      0.8394        0.7975     0.8849      0.8386              0.0008
+average difference: 0.004622874024461321
