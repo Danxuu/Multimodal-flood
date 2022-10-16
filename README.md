@@ -8,11 +8,17 @@
     - Install Python 3.6 and all modules in requirements.txt.
     - Install PostgreSQL (tested with 10.1) and `POSTGRESQL_HOST`, `POSTGRESQL_PORT`, `POSTGRESQL_USER` and `POSTGRESQL_PASSWORD` in *config.py*.
 2. Hydrological input data
+    - Register at https://sharaku.eorc.jaxa.jp/GSMaP/registration.html and obtain username and password for ftp-server.
+Fill out GSMaP_USERNAME and GSMaP_PASSWORD in config.py 
+    - Run 1. download_GSMaP_hourly.py. This file will download hourly GSMaP data to the folder classification/data/GSMaP/raw. This will take a while.
     - Register at https://cds.climate.copernicus.eu/cdsapp#!/home and obtain access to download datasets.
     - Download snowmelt dataset from https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-land?tab=overview. (ERA5-Land hourly data from 1950 to present)
+    - Run 2. process_snowmelt.py.
+    - Run 3. create_river_and_basin_maps.py
+    - Run 4. find_basin_indices.py
 3. Textual input data
     - Download the MUSE repository (https://github.com/facebookresearch/MUSE) to source folder (e.g., *MUSE/supervised.py*)
-    - Run *5. get_word_embeddings.py*. This will download word embeddings from Facebook and create multilingual word embeddings using MUSE. This process is a lot faster when Faiss is installed.
+    - Run 5. get_word_embeddings.py*. This will download word embeddings from Facebook and create multilingual word embeddings using MUSE. This process is a lot faster when Faiss is installed.
 4. General
     - Obtain a TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET from Twitter by registering as a developer at Twitter (https://developer.twitter.com/) and set keys in config.py.
     - Run 6. hydrate.py. This obtain text, date and language for tweets in the labelled data and place the hydrated data in data/labeled_data_hydrated.csv.
