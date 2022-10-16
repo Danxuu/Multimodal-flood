@@ -1,15 +1,10 @@
-"""Simple example on how to log scalars and images to tensorboard without tensor ops.
-
-License: Copyleft
-"""
-__author__ = "Michael Gygli"
-
 import tensorflow as tf
 import io
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+# logging system
 class Logger(object):
     """Logging in tensorboard without tensorflow ops."""
 

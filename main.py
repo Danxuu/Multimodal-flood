@@ -15,7 +15,6 @@ from config import EXPORT_DIR, SAMPLE_SETS
 # Do not display info messages for Tensorflow
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
-
 def create_run_name(experiment, iterations):
     run_name = ""
     for parameter, value in experiment.items():
@@ -25,6 +24,7 @@ def create_run_name(experiment, iterations):
     return run_name
 
 def main(experiment_type, iterations, n_folds, verbose=False):
+    # hyper-parameter settings
     hyper_parameters = {
         'n_epochs': [300],
         'discard_below_or_equal_to_value': [0],  # Discard zeros works better than not discard. Test with discard lower than x..
@@ -33,6 +33,7 @@ def main(experiment_type, iterations, n_folds, verbose=False):
 
     assert experiment_type in ('learning_rate', 'base_test', 'compare_pos_weight', 'compare_rainfall', 'export_normal', 'batch_size') or experiment_type.startswith('exclude-') or experiment_type.startswith('evaluate-')
 
+    # parameter settings for different experiments
     if experiment_type == 'compare_pos_weight':
         POS_WEIGHTS = [0.50, 1.00, 2.00, 3.00, 5.00]
     else:
@@ -90,9 +91,6 @@ def main(experiment_type, iterations, n_folds, verbose=False):
 
     df_columns = ['iteration_n', 'fold_n', 'n_folds', '% pos val', 'test_model', 'use_hydrology', 'pos_weight'] + list(hyper_parameters.keys()) + ['precision', 'recall', 'loss']
     output_df = pd.DataFrame(columns=df_columns)
-
-    
-
     keys, values = zip(*hyper_parameters.items())
     experiments = list(itertools.product(*values))
     n_experiments = len(experiments)
@@ -108,6 +106,7 @@ def main(experiment_type, iterations, n_folds, verbose=False):
             ) for sample_set in SAMPLE_SETS
         ]
 
+        # data loading
         data_loader = DataLoader(
             fps,
             includes_context=True,
@@ -135,6 +134,7 @@ def main(experiment_type, iterations, n_folds, verbose=False):
                 for pos_weight in POS_WEIGHTS:
                     for use_hydrology in (True, False):
                         run_name = f'{pos_weight}_{use_hydrology}_{test_model}_{iteration_n}_{fold_n}'
+                        # save best checkpoint
                         if save_model:
                             save_model_path = os.path.join(model_export_dir, f'best_{run_name}.ckpt')
                         else:
@@ -153,6 +153,8 @@ def main(experiment_type, iterations, n_folds, verbose=False):
                         #         ],
                         #         index=df_columns
                         # ), ignore_index=True)
+
+                        # training model
                         best_val_score, best_val_loss = train(
                             run_data_sel,
                             run_name=run_name,
@@ -168,6 +170,7 @@ def main(experiment_type, iterations, n_folds, verbose=False):
                             save_model_path=save_model_path,
                             export_labels=export_labels
                         )
+                        # get output
                         output_df = output_df.append(pd.Series(
                                 [iteration_n, fold_n, n_folds, percent_positive_validation, test_model, use_hydrology, pos_weight] + \
                                 list(settings.values()) + \
@@ -185,14 +188,13 @@ def main(experiment_type, iterations, n_folds, verbose=False):
 
         while True:
             try:
+                # save output to excel file
                 output_df.to_excel(output_fn, index=False)
                 break
             except PermissionError:
                 print()
                 input(f"Please close {output_fn} and press ENTER")
                 print('OK')
-
-
 
 
 if __name__ == '__main__':

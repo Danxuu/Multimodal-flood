@@ -6,6 +6,7 @@ from tf_helpers import learning_rate_multiplier
 FILTER_SIZES = [3, 4, 5]
 NUM_FILTERS = 32
 
+# neural network model
 
 def model(
     use_context,
@@ -34,6 +35,7 @@ def model(
         l2_loss = tf.constant(0.0)
 
     with tf.variable_scope("text"):
+        # setup LSTM_CNN model
         if kind == 'LSTM-CNN':
             lstm_cell = tf.keras.layers.LSTMCell(embedding_dim, name="LSTM-cell")
 
@@ -45,12 +47,14 @@ def model(
             for filter_size in FILTER_SIZES:
                 # CONVOLUTION LAYER
                 filter_shape = [filter_size, embedding_dim, 1, NUM_FILTERS]
+                # parameter w and b
                 W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
                 b = tf.Variable(tf.constant(0.1, shape=[NUM_FILTERS]), name="b")
+                # convolution layer
                 conv = tf.nn.conv2d(lstm_out_expanded, W, strides=[1, 1, 1, 1], padding="VALID", name="conv")
-                # NON-LINEARITY
+                # activation
                 h = tf.nn.sigmoid(tf.nn.bias_add(conv, b), name="sigmoid")
-                # MAXPOOLING
+                # maxpooling
                 pooled = tf.nn.max_pool(
                         h,
                         ksize=[
@@ -64,9 +68,11 @@ def model(
                 pooled_outputs.append(pooled)
 
             num_filters_total = NUM_FILTERS * len(FILTER_SIZES)
+            # vector concatenation
             h_pool = tf.concat(pooled_outputs, 3)
             h_pool_flat = tf.reshape(h_pool, [-1, num_filters_total])
 
+        # setup CNN model
         elif kind == 'CNN':
             embedded_chars_expanded = tf.expand_dims(x_text, -1)
 
@@ -75,8 +81,10 @@ def model(
             for i, filter_size in enumerate(FILTER_SIZES):
                 # Convolution Layer
                 filter_shape = [filter_size, embedding_dim, 1, NUM_FILTERS]
+                # parameter w and b
                 W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
                 b = tf.Variable(tf.constant(0.1, shape=[NUM_FILTERS]), name="b")
+                # convolution layer
                 conv = tf.nn.conv2d(
                     embedded_chars_expanded,
                     W,
@@ -84,9 +92,9 @@ def model(
                     padding="VALID",
                     name="conv"
                 )
-                # Apply nonlinearity
+                # RELU activation
                 h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
-                # Maxpooling over the outputs
+                # Maxpooling
                 pooled = tf.nn.max_pool(
                     h,
                     ksize=[1, sequence_length - filter_size + 1, 1, 1],
@@ -96,7 +104,7 @@ def model(
                 )
                 pooled_outputs.append(pooled)
 
-            # Combine all the pooled features
+            # Combine all the pooled features - concatenation
             num_filters_total = NUM_FILTERS * len(FILTER_SIZES)
             h_pool = tf.concat(pooled_outputs, 3)
             h_pool_flat = tf.reshape(h_pool, [-1, num_filters_total])
@@ -104,9 +112,11 @@ def model(
         else:
             raise ValueError
 
+    # when using context
     if use_context:
         with tf.variable_scope("context"):
             hydro_dense_nodes = 20
+            # dense layer
             hydro_dense = tf.layers.dense(
                 x_context,
                 hydro_dense_nodes,
@@ -114,6 +124,7 @@ def model(
                 kernel_initializer=tf.initializers.random_uniform(0, 2 * sqrt(6 / context_dim)),
                 activation=tf.nn.relu,
             )
+            # dense layer
             hydro_output_node = tf.layers.dense(
                 hydro_dense,
                 1,
@@ -124,10 +135,12 @@ def model(
 
     with tf.variable_scope("combination"):
         if use_context:
+            # vector concatenation
             combination_input = tf.concat([h_pool_flat_dropout, hydro_output_node], axis=1)
         else:
             combination_input = h_pool_flat_dropout
 
+        # dense layer
         another_dense = tf.layers.dense(
             combination_input,
             20,
@@ -136,6 +149,7 @@ def model(
             activation=tf.nn.tanh,
         )
 
+        # dense layer
         another_dense = tf.layers.dense(
             another_dense,
             20,
@@ -155,7 +169,7 @@ def model(
 
         predictions = tf.cast(tf.round(logits, name="predictions"), tf.int32)
         actual = tf.cast(tf.round(y), tf.int32)
-        
+    # calculate l2 loss
     l2_loss += tf.losses.get_regularization_loss()
 
     if use_context:

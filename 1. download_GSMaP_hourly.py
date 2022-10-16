@@ -21,6 +21,7 @@ try:
 except OSError:
     pass
 
+# Select date range from start to end
 
 def daterange(start_date, end_date, delta, ranges=False, include_last=False, UTC=False, timedelta=timedelta):
     if UTC:
@@ -46,7 +47,7 @@ lats = np.arange(59.95, -59.95 - 0.1, -0.1)
 data_lon_size = len(lons)
 data_lat_size = len(lats)
 
-
+# data soure connection
 def connect_jaxa():
     global jaxa_server
     cnopts = pysftp.CnOpts()
@@ -60,8 +61,9 @@ def connect_jaxa():
             print("retrying")
             time.sleep(30)
 
-
+# downloading data files
 def GSMaP_downloader(q):
+    # connecting data server
     connect_jaxa()
     while True:
         dt = q.pop()
@@ -71,6 +73,7 @@ def GSMaP_downloader(q):
         fp_checked = path.join(local_folder, f)
 
         print('checking', fp_unchecked)
+        # check if file is existed
         if path.exists(fp_unchecked):
             print('exists')
             try:
@@ -81,7 +84,7 @@ def GSMaP_downloader(q):
             else:
                 rename(fp_unchecked, fp_checked)
                 continue
-    
+
         remote_fp = path.join(dt.strftime('/realtime/archive/%Y/%m/%d/'), f)
         while True:
             try:
@@ -96,6 +99,7 @@ def GSMaP_downloader(q):
                 connect_jaxa()
             else:
                 try:
+                    # start downloading
                     with gzip.open(fp_unchecked, 'rb') as g:
                         np.frombuffer(g.read(), dtype=data_type).reshape(data_lat_size, data_lon_size)
                 except (EOFError, ValueError):
@@ -118,6 +122,7 @@ if __name__ == '__main__':
     now = datetime.utcnow()
     start = datetime(2009, 1, 1)
     end = datetime(2010, 12, 31)
+    # download data and save
     for dt in daterange(start, end, timedelta(hours=1)):
         f = dt.strftime("gsmap_nrt.%Y%m%d.%H00.dat.gz")
         if not path.exists(

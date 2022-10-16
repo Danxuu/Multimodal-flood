@@ -29,7 +29,7 @@ SCORE_TYPE_DISPLAY = {
     'fscore': {'color': 'orange'},
 }
 
-
+# evaluation metric
 def fbeta(precision, recall, beta=1):
     if precision == 0:
         return 0
@@ -43,6 +43,7 @@ def get_percentile(scores_plot_values, percentile):
         res.append(np.percentile(scores_plot_value, percentile))
     return res
 
+# calculate means and stds
 def get_means_stds(scores_plot_values):
     means = [
         stats.mean(scores_plot_value) for scores_plot_value in scores_plot_values
@@ -52,6 +53,7 @@ def get_means_stds(scores_plot_values):
     ]
     return means, stds
 
+#  plotting
 def plot(ax, plot_values, scores, compare_type, score_type):
     means, stds = get_means_stds(scores)
     ax.errorbar(
@@ -64,7 +66,7 @@ def plot(ax, plot_values, scores, compare_type, score_type):
     )
     return means, stds
 
-
+# conduct T-test
 def corrected_dependent_ttest(data1, data2, n_training_folds, n_test_folds):
     n = len(data1)
     differences = [(data1[i]-data2[i]) for i in range(n)]
@@ -86,7 +88,7 @@ def corrected_dependent_ttest(data1, data2, n_training_folds, n_test_folds):
     # return everything
     return t_stat, df, p
 
-
+# calculate significance
 def get_significance(population1, population2,  n_training_folds, n_test_folds, thresholds=(0.01, 0.05)):
     _, _, p = corrected_dependent_ttest(population1, population2, n_training_folds, n_test_folds)
     for n, threshold in enumerate(thresholds):
@@ -129,8 +131,8 @@ def main(experiment, plot_variable, decimals=2):
 
     assert len(data) != 0
 
+    # ploting
     fig, ax = plt.subplots()
-
 
     all_scores = {
         'precision': {},

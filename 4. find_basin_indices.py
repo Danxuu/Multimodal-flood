@@ -7,15 +7,16 @@ from osgeo import osr, gdal
 
 from postgresql import PostgreSQL
 
-RAINFALL_TYPE = 'MODIS'
+# parameters init
+SNOWMELT_TYPE = 'MODIS'
 
-if RAINFALL_TYPE == 'PERSIANN':
+if SNOWMELT_TYPE == 'PERSIANN':
     gt = (-180, .04, 0, 60, 0, -.04)
-elif RAINFALL_TYPE == 'MODIS':
+elif SNOWMELT_TYPE == 'MODIS':
     gt = (-180, .10, 0, 60, 0, -.10)
 
 
-tmp_folder = f"tmp/{RAINFALL_TYPE}"
+tmp_folder = f"tmp/{SNOWMELT_TYPE}"
 EPSG = 4326
 
 try:
@@ -23,8 +24,9 @@ try:
 except OSError:
     pass
 
-#nc_file = os.path.join('classification', 'data', RAINFALL_TYPE, '1hr_sum_2018.nc')
-nc_file = os.path.join('data', RAINFALL_TYPE, '1hr_sum_2010.nc')
+#nc_file = os.path.join('classification', 'data', SNOWMELT_TYPE, '1hr_sum_2018.nc')
+# set up path of netcdf file
+nc_file = os.path.join('data', SNOWMELT_TYPE, '1hr_sum_2010.nc')
 nc_ds = gdal.Open(nc_file)
 xsize = nc_ds.RasterXSize
 ysize = nc_ds.RasterYSize
@@ -32,6 +34,7 @@ ysize = nc_ds.RasterYSize
 tif_file = os.path.join(tmp_folder, 'raster.tif')
 shp_file = os.path.join(tmp_folder, 'raster.shp')
 
+# check if paths are existed
 if not os.path.exists(tif_file):
     driver = gdal.GetDriverByName('GTiff')
 
@@ -59,10 +62,11 @@ if not os.path.exists(shp_file):
         shell=True
     )
 
-
+# database instance
 pg = PostgreSQL('classification_snowmelt')
 
-if not pg.table_exists(f'{RAINFALL_TYPE.lower()}_raster'):
+if not pg.table_exists(f'{SNOWMELT_TYPE.lower()}_raster'):
+    # reading shape files
     gdf = gpd.GeoDataFrame.from_file(shp_file)
     print('finished reading file')
 
@@ -91,9 +95,9 @@ if not pg.table_exists(f'{RAINFALL_TYPE.lower()}_raster'):
     print('finished y')
 
     gdf = gdf.drop('DN', axis=1)
-
+    # create table to save geo data
     pg.cur.execute(f"""
-        CREATE TABLE {RAINFALL_TYPE.lower()}_raster (
+        CREATE TABLE {SNOWMELT_TYPE.lower()}_raster (
             geom GEOMETRY(Polygon, 4326),
             x INT,
             y INT
@@ -108,33 +112,36 @@ if not pg.table_exists(f'{RAINFALL_TYPE.lower()}_raster'):
         
         if not i % 1000:
             print(f"{i}/{n}")
+            # insert data
             pg.execute_values(
-                "INSERT INTO " + RAINFALL_TYPE.lower() + "_raster (geom, x, y) VALUES %s",
+                "INSERT INTO " + SNOWMELT_TYPE.lower() + "_raster (geom, x, y) VALUES %s",
                 data,
                 template="(ST_SetSRID(ST_GeomFromText(%s), 4326), %s, %s)",
                 page_size=1000
             )
             data = []
-
+    # insert data
     pg.execute_values(
-        "INSERT INTO " + RAINFALL_TYPE.lower() + "_raster (geom, x, y) VALUES %s",
+        "INSERT INTO " + SNOWMELT_TYPE.lower() + "_raster (geom, x, y) VALUES %s",
         data,
         template="(ST_SetSRID(ST_GeomFromText(%s), 4326), %s, %s)",
         page_size=1000
     )
 
-    pg.cur.execute(f"""CREATE INDEX cell_idx_{RAINFALL_TYPE.lower()}_raster ON {RAINFALL_TYPE.lower()}_raster USING GIST (geom)""")
+    pg.cur.execute(f"""CREATE INDEX cell_idx_{SNOWMELT_TYPE.lower()}_raster ON {SNOWMELT_TYPE.lower()}_raster USING GIST (geom)""")
     pg.conn.commit()
 
 
-if not pg.table_exists(f'{RAINFALL_TYPE.lower()}_basin_indices'):
+if not pg.table_exists(f'{SNOWMELT_TYPE.lower()}_basin_indices'):
+    # create table
     pg.cur.execute(f"""
-        CREATE TABLE {RAINFALL_TYPE.lower()}_basin_indices (
+        CREATE TABLE {SNOWMELT_TYPE.lower()}_basin_indices (
             idx VARCHAR PRIMARY KEY,
             indices JSONB
         )
     """)
 
+    # find data from table subbasins_9
     pg.cur.execute("""
         SELECT id FROM subbasins_9
     """)
@@ -148,13 +155,14 @@ if not pg.table_exists(f'{RAINFALL_TYPE.lower()}_basin_indices'):
             print(f"{i}/{n_basins}")
             pg.conn.commit()
 
+        # select data from combined subbasins_9 and raster table
         pg.cur.execute("""
             SELECT
                 ST_Area(ST_Intersection(r.geom, s.geom), true),
                 ST_Area(r.geom, true),
                 r.x,
                 r.y
-            FROM  """ + RAINFALL_TYPE.lower() + """_raster r, subbasins_9 s
+            FROM  """ + SNOWMELT_TYPE.lower() + """_raster r, subbasins_9 s
             WHERE ST_Intersects(r.geom, s.geom)
             AND s.id = %s
         """, (basin, ))
@@ -169,8 +177,9 @@ if not pg.table_exists(f'{RAINFALL_TYPE.lower()}_basin_indices'):
             for res in pg.cur.fetchall()
         ]
 
+        # insert data
         pg.cur.execute("""
-            INSERT INTO """ + RAINFALL_TYPE.lower() + """_basin_indices (idx, indices)
+            INSERT INTO """ + SNOWMELT_TYPE.lower() + """_basin_indices (idx, indices)
             VALUES (%s, %s)
         """, (basin, json.dumps(basin_overlaps)))
 

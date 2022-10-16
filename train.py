@@ -22,7 +22,7 @@ np.set_printoptions(suppress=True)
 
 PATIENCE = None
 
-
+# get labels
 def export_labels_f(
     batch_ids_val,
     predictions_batches_val,
@@ -49,7 +49,7 @@ def export_labels_f(
             print()
             input(f"Please close {fn} and press ENTER")
 
-
+# training process
 def train(
     run_data,
     run_name,
@@ -75,7 +75,7 @@ def train(
         x_train_id, x_val_id, y_train, y_val, x_train_text, x_val_text = run_data
 
     tf.reset_default_graph()
-
+    # create model
     (
         x,
         y,
@@ -95,8 +95,8 @@ def train(
         kind='CNN',
         test_model=test_model
     )
-
-    with tf.Session() as sess:        
+    # start training
+    with tf.Session() as sess:
         if log:
             log_folder = 'logs'
             logger = Logger(
@@ -134,6 +134,7 @@ def train(
             )
         )
 
+        # training through each epoch
         for global_epoch in range(1, n_epochs+1):
             # TRAINING PHASE
             # Reshuffle training data for each epoch
@@ -148,6 +149,7 @@ def train(
             predictions_batches_train = []
             batch_ids_train = []
             batch_context_train = []
+            # batch data for training
             for train_batch in train_batches:
                 batch_actual, batch_predictions, _, batch_loss, batch_loss_all = do_step(
                     loss,
@@ -194,6 +196,7 @@ def train(
             actual_batches_val = []
             predictions_batches_val = []
             batch_ids_val = []
+            # validation process
             for val_batch in val_batches:
                 batch_actual, batch_predictions, batch_id, batch_loss, batch_loss_all = do_step(
                     loss,
@@ -219,6 +222,7 @@ def train(
                 predictions_batches_val.extend(batch_predictions)
                 batch_ids_val.extend(batch_id)
 
+            # calculate validation scores
             val_scores = calculate_scores(
                 actual_batches_val,
                 predictions_batches_val,
@@ -227,6 +231,7 @@ def train(
                 logger_prefix='val'
             )
 
+            # validation loss
             avg_val_loss = val_loss / len(y_val)
             if logger:
                 logger.log_scalar('val_loss', avg_val_loss, global_epoch)
@@ -246,6 +251,7 @@ def train(
                     best_model_export_for_error_label = batch_ids_val, predictions_batches_val, actual_batches_val
                 best_val_loss = avg_val_loss
 
+                # save best model
                 if save_model_path:
                     saver.save(sess, save_model_path, write_meta_graph=True)
             
@@ -271,6 +277,7 @@ def train(
             print(f"best model:", best_model_epoch, "validation loss = {:.9f}".format(best_val_loss))
             print(best_model_val_score)
 
+        # save checkpoint with scores and loss
         if return_restore_dir:
             restore_dir = os.path.join(EXPORT_DIR, f'{best_model_epoch}.ckpt')
             return best_model_val_score, best_val_loss, restore_dir

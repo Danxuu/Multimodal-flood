@@ -7,6 +7,8 @@ import tensorflow as tf
 import random
 
 
+# load data for cross validation
+# and set up training and test data split
 class DataLoader:
     def __init__(self, fps, embedded_text=True, includes_context=False, includes_groups=False, includes_labels=False):
         self.includes_context = includes_context

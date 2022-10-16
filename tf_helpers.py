@@ -7,7 +7,7 @@ import tensorflow as tf
 from sklearn.metrics import precision_score, recall_score
 from sklearn.utils.class_weight import compute_class_weight
 
-
+# batch iterator
 def gen_batch(data, batch_size, shuffle=True):
     """
     Generates a batch iterator for a dataset.
@@ -26,7 +26,7 @@ def gen_batch(data, batch_size, shuffle=True):
         end_index = min((batch_num + 1) * batch_size, data_size)
         yield shuffled_data[start_index:end_index]
 
-
+# evaluation metric
 def calculate_scores(actual_batches, predictions_batches, epoch, logger=None, logger_prefix=None):
     # No positive samples at all
     if sum(predictions_batches) == 0:
@@ -47,6 +47,7 @@ def calculate_scores(actual_batches, predictions_batches, epoch, logger=None, lo
 
     return pd.DataFrame([precision, recall], columns=['flood'], index=index)
 
+# calculate confusion matrix
 def get_confusion_matrix(sess, actual, predictions, labels):
     confusion_matrix = tf.confusion_matrix(
         actual,
@@ -142,6 +143,7 @@ def do_step(
     batch_loss_all = c_all * len(batch_y)
     return list(batch_actual), list(batch_predictions), list(batch_id), batch_loss, batch_loss_all
 
+# learning rate
 def learning_rate_multiplier(alpha):
     @tf.custom_gradient
     def _lr_mult(x):
@@ -150,6 +152,7 @@ def learning_rate_multiplier(alpha):
         return x, grad
     return _lr_mult
 
+# log file
 def get_run_log_folder(name, log_folder):
     last_run_txt = os.path.join(log_folder, 'lastrun.txt')
     if not os.path.exists(last_run_txt):
@@ -166,6 +169,7 @@ def get_run_log_folder(name, log_folder):
             f.write(str(run_n))
     return os.path.join(log_folder, f"{run_n}_{name}")
 
+# get positive weight
 def get_positive_weight(y):
     positive = np.sum(y)
     negative = y.shape[0] - positive

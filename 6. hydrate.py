@@ -4,7 +4,11 @@ import simplejson
 import time
 import datetime
 
+# This file obtains text, date and language for tweets in the labelled data
+# and place the hydrated data in data/labeled_data_hydrated.csv.
+#
 
+# Twitter configuration
 from config import (
     TWITTER_CONSUMER_KEY,
     TWITTER_CONSUMER_SECRET,
@@ -20,6 +24,7 @@ from config import (
 # calling the api  
 #api = tweepy.API(auth)
 
+# create twitter instance
 cleint=tweepy.Client(TWITTER_BEARER_TOKEN,TWITTER_CONSUMER_KEY,TWITTER_CONSUMER_SECRET,TWITTER_ACCESS_TOKEN,TWITTER_ACCESS_TOKEN_SECRET)
 
 
@@ -27,6 +32,7 @@ def chunker(iterable, size):
     for pos in range(0, len(iterable), size):
         yield iterable[pos:pos + size]
 
+# get text, date and language for tweets in the labelled data
 def lookup(tweet_ids):
     texts, dates, languages = [], [], []
     for tweet_ids_chunk in chunker(tweet_ids, 100):

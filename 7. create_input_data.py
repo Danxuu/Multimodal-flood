@@ -22,6 +22,11 @@ from config import (
     SAMPLE_SETS
 )
 
+# read data/labeled_data_hydrated.csv
+# output a pickle with word embeddings and hydrological data per tweet.
+# The data is placed in data/input.
+
+# database instance
 pg = PostgreSQL('classification_snowmelt')
 
 
@@ -39,51 +44,61 @@ class BasinHydrology():
 
         self.start_date = self.numpy64_todatetime(self.precipitation['time'][0].values)
 
+    # date format
     def numpy64_todatetime(self, np64):
         assert isinstance(np64, np.datetime64)
         return datetime.utcfromtimestamp(np64.astype('O') / 1e9)
 
+    # find upstream basin from subbasin table
     def find_upstream_basins(self, id, level, max_recursion=None):
         upstream_basins = []
         if max_recursion is None or max_recursion > 0:
             if max_recursion is not None:
                 max_recursion -= 1
+            # database selecting execution
             pg.cur.execute(f"""
                 SELECT id FROM subbasins_{level} WHERE downstream = '{id}'
             """)
+            # save results to array
             for upstream_id, in pg.cur.fetchall():  # if none are found the recursive function is never called thus is a stop condition
                 upstream_basins.append(upstream_id)
                 upstream_basins.extend(self.find_upstream_basins(upstream_id, level, max_recursion))
         return upstream_basins
 
-
+    # select upstream rivers by travel time
     def find_upstream_rivers_by_travel_time(self, river_id, lag_time_hours=None, _downstream_basin=None):
         upstream_rivers = []
         if _downstream_basin is None:
+            # database selecting execution
             pg.cur.execute("""
                 SELECT subbasin_9 FROM hydrorivers WHERE id = %s
             """, (river_id, ))
             _downstream_basin = pg.cur.fetchone()[0]
         if lag_time_hours is None or lag_time_hours > 0:
             if lag_time_hours is not None:
+                # database selecting execution
                 pg.cur.execute("""
                     SELECT subbasin_9, propagation_time FROM hydrorivers WHERE id = %s
                 """, (river_id, ))
                 current_basin, propagation_time_days = pg.cur.fetchone()
                 if current_basin != _downstream_basin:
                     lag_time_hours -= propagation_time_days * 24  # days -> hours
+            # database selecting execution
             pg.cur.execute(f"""
                 SELECT id FROM hydrorivers WHERE downstream = %s
             """, (river_id, ))
+            # save results to array
             for upstream_id, in pg.cur.fetchall():  # if none are found the recursive function is never called thus is a stop condition
                 upstream_rivers.append(upstream_id)
                 upstream_rivers.extend(self.find_upstream_rivers_by_travel_time(
                     upstream_id, lag_time_hours, _downstream_basin=_downstream_basin))
         return upstream_rivers
 
+    # select travel time for each river
     def get_river_travel_time(self, upstream_id, downstream_id):
         total_propagation_time = 0
         while upstream_id != downstream_id:
+            # save results to array
             pg.cur.execute("""
                 SELECT propagation_time, downstream FROM hydrorivers WHERE id = %s
             """, (upstream_id, ))
@@ -92,13 +107,17 @@ class BasinHydrology():
             upstream_id = new_id
         return total_propagation_time * 24
 
+    # select basins for each river
     def get_basins_for_rivers(self, river_ids):
+        # save results to array
         pg.cur.execute("""
             SELECT DISTINCT subbasin_9 FROM hydrorivers WHERE id IN %s
         """, (tuple(river_ids), ))
         return [basin_id for basin_id, in pg.cur.fetchall()]
 
+    # select upstream basin by travel time
     def find_upstream_basins_by_travel_time(self, basin_id, lag_time_hours=None):
+        # save results to array
         pg.cur.execute("""
             WITH river_segments AS (
                 SELECT
@@ -120,6 +139,7 @@ class BasinHydrology():
 
         upstream_rivers = set()
         for river_id, in pg.cur.fetchall():
+            # table update
             upstream_rivers.update(self.find_upstream_rivers_by_travel_time(river_id, lag_time_hours=lag_time_hours))
         if upstream_rivers:
             basins = self.get_basins_for_rivers(upstream_rivers)
@@ -138,13 +158,16 @@ class BasinHydrology():
         timeline = (cumsum[accumulation_time:] - cumsum[:-accumulation_time]) / accumulation_time
         return timeline
 
+    # select preciptation for each cell
     def get_cell_precipitation(self, x, y):
         # return self.precipitation[
         #     {'lat': y, 'lon': x}
         # ]['precipitation'].values
         return self.precipitation[{'lat': y, 'lon': x}]['snowmelt'].values
 
+    # obtain hyrology for basin
     def get_hydrology_for_basin(self, basinid):
+        # save results to array
         pg.cur.execute("""
             SELECT indices
             FROM """ + self.name_rainfall_dataset.lower() + """_basin_indices
@@ -154,13 +177,12 @@ class BasinHydrology():
         basin_precipitation = []
         factors = []
         # print(len(indices))
+        # cell indices x and y
         for cell_indices in indices:
-            # print(1111111111111111)
             cell_precipitation = self.get_cell_precipitation(
                 cell_indices['x'],
                 cell_indices['y']
             )
-            # print(2222222222222222)
             if self.name_rainfall_dataset == 'PERSIANN':
                 cell_precipitation = cell_precipitation / 100  # unit is 100 * mm/hr
             elif self.name_rainfall_dataset == 'MODIS':
@@ -238,6 +260,7 @@ class BasinHydrology():
         # return value / np.percentile(timeline, 98)
         return percentileofscore(timeline, value, kind='strict')
 
+    # calculate percentile
     def calculate_percentile(self, timeline, threshold):
         timeline = self.discard_below_or_equal_to(timeline)
         if timeline.size>0 :
@@ -292,10 +315,12 @@ class BasinHydrology():
         return n_cells / sum(factors)
 
 
+# output a pickle with word embeddings and hydrological data per tweet.
 class DataCreator:
     def __init__(self, settings):
         self.settings = settings
 
+    # data cleaning
     def clean_text(self, ID, text, language_code, locations, user_replacements={
         'en': 'user',
         'nl': 'gebruiker',
@@ -392,6 +417,7 @@ class DataCreator:
         else:
             return text
 
+    # data loading
     def load_rainfall_data(self, start_date, end_date):
         files = [
             os.path.join('data', self.settings['rainfall_dataset'], f'1hr_sum_{year}.nc')
@@ -576,6 +602,7 @@ class DataCreator:
         with open(pickle_file, 'wb') as p:
             pickle.dump(res, p)
 
+    # output a pickle with word embeddings and hydrological data per tweet.
     def analyze_labelled_data(self, overwrite=False):
         labeled_data = pd.read_csv('data/labeled_data_hydrated.csv')
         for sample_set in SAMPLE_SETS:
@@ -643,11 +670,13 @@ class DataCreator:
 
 
 if __name__ == '__main__':
+    # config
     settings = {
         "rainfall_dataset": 'MODIS',
         "discard_below_or_equal_to_value": 0,
         "correct_rainfall": True,
         "replace_locations": True
     }
+    # datacreator instance
     data_creator = DataCreator(settings)
     data_creator.analyze_labelled_data(overwrite=False)

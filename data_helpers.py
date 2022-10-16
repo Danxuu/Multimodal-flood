@@ -5,6 +5,7 @@ import fasttext
 
 from config import EMBEDDING_DIM
 
+# find NN word and vector
 class FastTextNN:
     def __init__(self, ft_model, ft_matrix=None):
         self.ft_model = ft_model        
@@ -33,6 +34,7 @@ class FastTextNN:
             res = res[0:n]
         return res
 
+# get saved model
 def load_embeddings_and_mapping(language_code):
     model = fasttext.load_model(os.path.join(
         'data', 'fastText', f'wiki.{language_code}.bin'
@@ -49,6 +51,7 @@ def load_embeddings_and_mapping(language_code):
 
     return model, mapping
 
+# calculate word embedding
 def get_word_vector(model, mapping, word):
     vector = model.get_word_vector(word)
     if mapping:
@@ -57,5 +60,7 @@ def get_word_vector(model, mapping, word):
     return vector
 
 if __name__ == '__main__':
+    # get saved model
     model, mapping = load_embeddings_and_mapping('en')
+    # put model to FastTextNN to get NN word as result
     nn = FastTextNN(model)

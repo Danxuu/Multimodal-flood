@@ -12,6 +12,7 @@ import pytz
 
 from operator import le, lt
 
+# selecting date range for downloaded files
 def daterange(start_date, end_date, delta, ranges=False, include_last=False, UTC=False, timedelta=timedelta):
     if UTC:
         start_date = start_date.replace(tzinfo=pytz.UTC)
@@ -30,13 +31,13 @@ def daterange(start_date, end_date, delta, ranges=False, include_last=False, UTC
         start_date += delta
 
 
-
+# create netCDF4 file for each downloaded file - snowmelt
 def create_nc(start, end, folder, nc_path):
-    if RAINFALL_TYPE == 'PERSIANN':
+    if SNOWMELT_TYPE == 'PERSIANN':
         data_type = np.dtype('>i2')  # Little-endian 4byte (32bit) float
         lons = np.arange(-179.98, 180, 0.04)
         lats = np.arange(59.98, -60, -0.04)
-    elif RAINFALL_TYPE == 'MODIS':
+    elif SNOWMELT_TYPE == 'MODIS':
         data_type = np.dtype('<f4')
         lons = np.arange(-179.95, 180, 0.1)
         lats = np.arange(60.00, -59.95 - 0.1, -0.1)
@@ -97,6 +98,7 @@ def create_nc(start, end, folder, nc_path):
 
         precip = ncfile.variables['snowmelt']
 
+    # setup chunk cache for fast processing
     precip.set_var_chunk_cache(size=14_000_000_000, nelems=100_000_000, preemption=0)
     t0 = datetime.utcnow()
     for timestep, dt in enumerate(daterange(start, end, timedelta(hours=1)), start=timestep):
@@ -107,21 +109,21 @@ def create_nc(start, end, folder, nc_path):
             
             file = netCDF4.Dataset(fp)
             data = file['smlt'][timestep]
-            rainfall_raw = [x*1000 for x in data]
+            snowmelt_raw = [x*1000 for x in data]
             # for lat in range(data_lat_size):
             #     for lon in range(data_lon_size):      
-            #         print(rainfall_raw[lat][lon])
-            rainfall_raw=np.array(rainfall_raw)
+            #         print(snowmelt_raw[lat][lon])
+            snowmelt_raw=np.array(snowmelt_raw)
             
             split_col = data_lon_size // 2
             
-            rainfall = np.zeros((data_lat_size, data_lon_size))
-            rainfall[:, split_col:] = rainfall_raw[:, :split_col]
-            rainfall[:, :split_col] = rainfall_raw[:, split_col:]
-            # # rainfall is never negative
-            rainfall[rainfall < 0] = 0
+            snowmelt = np.zeros((data_lat_size, data_lon_size))
+            snowmelt[:, split_col:] = snowmelt_raw[:, :split_col]
+            snowmelt[:, :split_col] = snowmelt_raw[:, split_col:]
+            # snowmelt is never negative
+            snowmelt[snowmelt < 0] = 0
             
-            precip[timestep, :, :] = rainfall
+            precip[timestep, :, :] = snowmelt
             times[timestep] = date2num(dt, units=times.units, calendar=times.calendar)
         else:
             print(f'{fp} does not exist')
@@ -133,12 +135,14 @@ def create_nc(start, end, folder, nc_path):
         if not timestep % 30:
             ncfile.sync()
 
+    #
     ncfile.close()
 
-
+# compile a NetCDF4-file out of the downloaded files.
 if __name__ == '__main__':
-    RAINFALL_TYPE = 'MODIS'
-    base_path = os.path.join('data', RAINFALL_TYPE)
+    SNOWMELT_TYPE = 'MODIS'
+    base_path = os.path.join('data', SNOWMELT_TYPE)
+    # create netcdf file for each snowmelt data file
     for year in list(range(2009, 2010)):
         hourly_nc = os.path.join(base_path, f"1hr_sum_{year}.nc")
         orgin_hourly_nc= os.path.join(base_path, f"1hr_sum_origin_{year}.nc")

@@ -1,6 +1,7 @@
 from main import main
 from config import SAMPLE_SETS
 
+# parameter settings
 ITERATIONS = 10
 N_FOLDS = 5
 
@@ -9,6 +10,7 @@ experiments = [
     'compare_pos_weight',
 ]
 
+# run all experiments
 for sample_set in SAMPLE_SETS:
     experiments.append(f'exclude-{sample_set}')
     experiments.append(f'evaluate-{sample_set}')

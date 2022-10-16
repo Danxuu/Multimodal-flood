@@ -11,6 +11,7 @@ from config import (
     POSTGRESQL_PORT
 )
 
+# PostgreSQL connection, insertion, creation, update
 
 class PostgreSQL:
     def __init__(self, db, host=None, user=POSTGRESQL_USER, password=POSTGRESQL_PASSWORD):

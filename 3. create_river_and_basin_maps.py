@@ -5,9 +5,10 @@ import numpy as np
 import geopandas as gpd
 from osgeo import ogr
 
+# create instance for database, named classification_snowmelt
 pg = PostgreSQL('classification_snowmelt')
 
-
+# export shape data to the use of database execution
 def export_shapefile(shapefile, fields, kind='json', force_multipolygon=False):
     print(shapefile)
     shapefile = ogr.Open(shapefile)
@@ -31,9 +32,11 @@ def export_shapefile(shapefile, fields, kind='json', force_multipolygon=False):
         output.append(row)
     return output
 
+# create subbasin data and insert to database
 def create_subbasin_map(level):
     if not pg.table_exists(f'subbasins_{level}'):
         print(f"Creating subbasins map level {level}")
+        # create table
         pg.cur.execute(f"""
             CREATE TABLE subbasins_{level} (
                 id VARCHAR PRIMARY KEY,
@@ -42,6 +45,7 @@ def create_subbasin_map(level):
             )
         """)
         hybas_basins = []
+        # loop for all continents
         for continent in ['af', 'eu', 'ar', 'as', 'au', 'na', 'sa', 'si']:
             f = f'hybas/hybas_{continent}_lev{level:02d}_v1c.shp'
             for basin in export_shapefile(
@@ -55,6 +59,7 @@ def create_subbasin_map(level):
                 basin[1] = 's-' + str(basin[1]) if basin[1] != 0 else None
                 hybas_basins.append(basin)
 
+        # insert to database
         pg.execute_values(
             f"INSERT INTO subbasins_{level} (id, downstream, geom) VALUES %s",
             hybas_basins,
@@ -82,9 +87,11 @@ def create_subbasin_map(level):
         """)
         pg.conn.commit()
 
+# create hydrorivers data and insert to database
 def create_hydrorivers_map():
     if not pg.table_exists('hydrorivers'):
         print('Creating hydrobasins map')
+        # create table
         pg.cur.execute("""
             CREATE TABLE hydrorivers (
                 id INT PRIMARY KEY,
@@ -97,6 +104,7 @@ def create_hydrorivers_map():
         continents = ['ca', 'af', 'eu', 'as', 'au', 'na', 'sa']
 
         n_so_far = 0
+        # mapping hydrorivers data to the corresponding continents
         for continent in continents:
             folder = os.path.join('data', 'hydrorivers', f'{continent}riv')
             gdf = gpd.GeoDataFrame.from_file(os.path.join(folder, f'{continent}riv.shp')) 
@@ -112,10 +120,12 @@ def create_hydrorivers_map():
 
             gdf['id'] = np.rint(gdf['ARCID']).astype(int)
 
+            # mapping
             gdf['downstream_id'] = gdf['id'].map(connections)
             gdf['id'] += n_so_far
 
             for _, row in gdf.iterrows():
+                # database insertion
                 pg.cur.execute("""
                     INSERT INTO hydrorivers (id, downstream, upstream_cells, propagation_time, geom) VALUES (%s, %s, %s, %s, ST_SetSRID(ST_GeomFromText(%s), 4326))
                 """, (row['id'], row['downstream_id'], row['UP_CELLS'], row['PROPTIME_D'], row['geometry'].wkt))
@@ -124,9 +134,11 @@ def create_hydrorivers_map():
             n_so_far += len(gdf)
 
         print("Finding subbasins for river segments")
+        # add subbasin_9 column to hydrorivers table
         pg.cur.execute("""
             ALTER TABLE hydrorivers ADD COLUMN subbasin_9 VARCHAR
         """)
+        # update hydrorivers table
         pg.cur.execute("""
             UPDATE hydrorivers
             SET subbasin_9 = subbasins_9.id
